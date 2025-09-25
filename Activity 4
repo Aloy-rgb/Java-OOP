@@ -1,0 +1,18 @@
+import javax.swing.JOptionPane;
+
+public class Loy_a1 {
+    public static void main(String[] args) {
+        double[] denominations = {1000, 500, 200, 100, 50, 20, 10, 5, 1, 0.25, 0.10, 0.05};
+
+        String input = JOptionPane.showInputDialog("Enter an amount:");
+        double amount = Double.parseDouble(input);
+
+        StringBuilder result = new StringBuilder("Denomination:\n\n");
+        for (double denom : denominations) {
+            int count = (int)(amount / denom);
+            result.append(denom).append(" : ").append(count).append("\n");
+        }
+
+        JOptionPane.showMessageDialog(null, result.toString());
+    }
+}
