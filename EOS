@@ -1,0 +1,217 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import javax.swing.JOptionPane;
+class TicketType {
+    private final String typeId;
+    private final String name;
+    private final double basePrice;
+    private final int maxCapacity;
+
+    public TicketType(String name, double basePrice, int maxCapacity) {
+        this.typeId = UUID.randomUUID().toString();
+        this.name = name;
+        this.basePrice = basePrice;
+        this.maxCapacity = maxCapacity;
+    }
+
+    public String getTypeId() { return typeId; }
+    public String getName() { return name; }
+    public double getBasePrice() { return basePrice; }
+    public int getMaxCapacity() { return maxCapacity; }
+
+    @Override
+    public String toString() {
+        return String.format("ID: %s | Name: %s | Price: $%.2f | Capacity: %d", 
+                             typeId.substring(0, 8), name, basePrice, maxCapacity);
+    }
+    
+    public static void main(String[] args) {
+        EventOrganizerSystem system = new EventOrganizerSystem();
+        
+        JOptionPane.showMessageDialog(null, 
+            "Welcome to the Event Organizer System!\n\nTickets will now be set up automatically.", 
+            "Event System Setup", JOptionPane.INFORMATION_MESSAGE);
+
+        setupTickets(system);
+        
+        processUserRegistrations(system);
+
+        StringBuilder summary = new StringBuilder();
+        summary.append("--- 4. Final Event Summary ---\n\n");
+        summary.append(String.format("Total Registrations Processed: %d\n\n", system.allRegistrations.size()));
+        summary.append("Final Registration List (Invoicing/Reporting):\n");
+        
+        if (system.allRegistrations.isEmpty()) {
+            summary.append("No registrations processed.\n");
+        } else {
+            system.allRegistrations.forEach(reg -> summary.append(reg.toString()).append("\n"));
+        }
+        
+        JOptionPane.showMessageDialog(null, summary.toString(), "Final Summary", JOptionPane.INFORMATION_MESSAGE);
+    }
+    
+  
+    private static void setupTickets(EventOrganizerSystem system) {
+        // VIP Pass: Highest price, low capacity
+        system.addTicketType("VIP Pass - $150.00", 150.00, 2); 
+        // Regular Admission: Standard price, medium capacity
+        system.addTicketType("Regular Admission - $100.00", 100.00, 20); 
+        // Early Bird Special: Already discounted price, low capacity
+        system.addTicketType("Early Bird Special - $85.00", 85.00, 5); 
+    }
+
+
+    private static void processUserRegistrations(EventOrganizerSystem system) {
+        String title = "Registration Processing";
+
+        String[] ticketNames = system.ticketTypes.values().stream()
+                                  .map(TicketType::getName)
+                                  .toArray(String[]::new);
+
+        while (true) {
+            String attendeeName = JOptionPane.showInputDialog(null, 
+                "Enter Attendee Name (or press Cancel to finish registrations):", 
+                title, JOptionPane.QUESTION_MESSAGE);
+
+            if (attendeeName == null || attendeeName.trim().isEmpty()) {
+          
+                if (attendeeName == null) {
+                    JOptionPane.showMessageDialog(null, "Registration session finished.", title, JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Attendee name cannot be empty. Finishing session.", title, JOptionPane.ERROR_MESSAGE);
+                }
+                break;
+            }
+     
+            String selectedTicketName = (String) JOptionPane.showInputDialog(null, 
+                "Select a ticket type for " + attendeeName + ":", 
+                title, 
+                JOptionPane.QUESTION_MESSAGE, 
+                null, 
+                ticketNames, 
+                ticketNames[0]);
+
+            if (selectedTicketName == null) {
+                // User cancelled ticket selection
+                JOptionPane.showMessageDialog(null, "Registration cancelled for " + attendeeName + ".", title, JOptionPane.WARNING_MESSAGE);
+                continue;
+            }
+           
+            TicketType selectedTicket = system.ticketTypes.values().stream()
+                .filter(t -> t.getName().equals(selectedTicketName))
+                .findFirst()
+                .orElse(null);
+
+            if (selectedTicket == null) {
+                JOptionPane.showMessageDialog(null, 
+                    "❌ Error: Ticket type '" + selectedTicketName + "' not found.", 
+                    title, JOptionPane.ERROR_MESSAGE);
+                continue;
+            }
+
+            system.processRegistration(selectedTicket.getTypeId(), attendeeName);
+        }
+    }
+} 
+
+class Registration {
+    private final String registrationId;
+    private final TicketType ticket;
+    private final String attendeeName;
+    private final double finalPrice;
+    private final String invoiceNumber;
+
+    public Registration(TicketType ticket, String attendeeName, double finalPrice) {
+        this.registrationId = UUID.randomUUID().toString();
+        this.ticket = ticket;
+        this.attendeeName = attendeeName;
+        this.finalPrice = finalPrice;
+        this.invoiceNumber = "INV-" + this.registrationId.substring(0, 8).toUpperCase();
+    }
+
+    public String getRegistrationId() { return registrationId; }
+    public TicketType getTicket() { return ticket; }
+    public String getAttendeeName() { return attendeeName; }
+    public double getFinalPrice() { return finalPrice; }
+    public String getInvoiceNumber() { return invoiceNumber; }
+
+    @Override
+    public String toString() {
+        return String.format("Reg ID: %s | Attendee: %s | Ticket: %s | Paid: $%.2f | Invoice: %s",
+                             registrationId.substring(0, 8), attendeeName, ticket.getName(), finalPrice, invoiceNumber);
+    }
+}
+
+class EventOrganizerSystem { 
+    
+    final Map<String, TicketType> ticketTypes; 
+    final List<Registration> allRegistrations; 
+    private final Map<String, Integer> currentSales; 
+
+    public EventOrganizerSystem() {
+        this.ticketTypes = new HashMap<>();
+        this.allRegistrations = new ArrayList<>();
+        this.currentSales = new HashMap<>();
+    }
+
+    public void addTicketType(String name, double basePrice, int maxCapacity) {
+        TicketType newType = new TicketType(name, basePrice, maxCapacity);
+        ticketTypes.put(newType.getTypeId(), newType);
+        currentSales.put(newType.getTypeId(), 0);
+    }
+
+    public int getRealTimeRegistrationCount(String typeId) {
+        return currentSales.getOrDefault(typeId, 0);
+    }
+
+
+    public Registration processRegistration(String typeId, String attendeeName) {
+        TicketType ticket = ticketTypes.get(typeId);
+        
+        if (ticket == null) {
+            JOptionPane.showMessageDialog(null, "❌ Error: Ticket type not found.", "Registration Error", JOptionPane.ERROR_MESSAGE);
+            return null;
+        }
+
+        int soldCount = currentSales.get(typeId);
+        if (soldCount >= ticket.getMaxCapacity()) {
+            JOptionPane.showMessageDialog(null, 
+                String.format("❌ Registration Failed for %s: Capacity (%d) reached.", 
+                              ticket.getName(), ticket.getMaxCapacity()), 
+                "Capacity Reached", JOptionPane.ERROR_MESSAGE);
+            return null;
+        }
+
+        double finalPrice = ticket.getBasePrice(); 
+        
+        boolean paymentSuccess = simulatePaymentGateway(finalPrice, ticket.getName());
+        if (!paymentSuccess) {
+            JOptionPane.showMessageDialog(null, "❌ Registration Failed: Payment processing failed.", "Payment Error", JOptionPane.ERROR_MESSAGE);
+            return null;
+        }
+        
+        Registration newReg = new Registration(ticket, attendeeName, finalPrice);
+        allRegistrations.add(newReg);
+        currentSales.put(typeId, soldCount + 1); // Update real-time count
+        
+        JOptionPane.showMessageDialog(null, 
+            String.format("✅ Success! Registered %s for %s.\nPaid: $%.2f\nInvoice: %s", 
+                          attendeeName, ticket.getName(), finalPrice, newReg.getInvoiceNumber()), 
+            "Registration Complete", JOptionPane.INFORMATION_MESSAGE);
+        return newReg;
+    }
+    
+   
+    private boolean simulatePaymentGateway(double amount, String ticketName) {
+        if (amount > 0) {
+            JOptionPane.showMessageDialog(null, 
+                String.format("[Payment Processed]: Charging $%.2f for %s via Secure Gateway.", amount, ticketName), 
+                "Payment Status", JOptionPane.INFORMATION_MESSAGE);
+            return true;
+        }
+        return false;
+    }
+}
